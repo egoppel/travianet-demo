@@ -1,0 +1,12 @@
+# Local run without Traefik:  docker compose -f docker-compose.local.yml up --build
+services:
+  api:
+    build:
+      context: ./backend
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      NODE_ENV: production
+      API_KEY: ${API_KEY:-}
+      ADMIN_KEY: ${ADMIN_KEY:-}

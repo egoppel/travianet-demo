@@ -1,0 +1,30 @@
+{
+  "language": "de",
+  "accept_language": "de-DE",
+  "agent_prefix": "trv-de",
+  "gemini_voice": "Kore",
+  "welcome_parts": [
+    {
+      "message": "Guten Tag, ich bin Ihr digitaler Reiseassistent.",
+      "barge_in": false
+    },
+    {
+      "message": "Rufen Sie zu einer bestehenden Buchung an, oder möchten Sie ein neues Reiseangebot anfragen?",
+      "barge_in": true
+    }
+  ],
+  "end_call_keywords": [
+    "Auf Wiederhören"
+  ],
+  "inactivity_reminder_text": "HINWEIS: Der Anrufer hat seit {silence_time} Sekunden nichts gesagt. Das ist Erinnerung {count}.",
+  "max_turns_message": "Vielen Dank für Ihren Anruf. Ich verbinde Sie jetzt mit einem Kollegen.",
+  "error_message": "Entschuldigung, da ist etwas schiefgelaufen. Können Sie das bitte noch einmal sagen?",
+  "agents": {
+    "main": "Travianet Reiseassistent: Begrüßung und Weiterleitung nach Anliegen.",
+    "auth": "Travianet: Identifikation mit TIS-ID, Postleitzahl und Reisedatum.",
+    "booking": "Travianet: Auskünfte zu einer bestehenden Buchung, Unterlagen, Zahlung, Übergabe an Sikom.",
+    "cancel": "Travianet: Stornierung einer Buchung mit Kostenauskunft.",
+    "rebook": "Travianet: Umbuchung einer Buchung auf einen neuen Termin.",
+    "offer": "Travianet: Aufnahme einer Angebotsanfrage und Übergabe an Sikom Service 4."
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "travianet-demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "npm --prefix backend test && node --test livehub/test/manifest.test.mjs",
+    "backend:dev": "npm --prefix backend run dev",
+    "livehub:manifest": "node livehub/build-manifest.mjs --lang de",
+    "livehub:provision": "node livehub/provision.mjs --lang de",
+    "livehub:chat": "node livehub/chat.mjs --lang de"
+  }
+}

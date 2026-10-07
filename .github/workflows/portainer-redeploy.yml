@@ -2,7 +2,7 @@ name: Redeploy via Portainer
 
 on:
   workflow_run:
-    workflows: ["Build and push"]
+    workflows: ["Build and publish Docker image"]
     types:
       - completed
 

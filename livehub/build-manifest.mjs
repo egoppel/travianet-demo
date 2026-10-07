@@ -87,7 +87,7 @@ function realtimeConfig(locale) {
 export function buildManifest({ lang = "de", baseUrl, apiKey, sikom }) {
   const { locale, prompt } = loadLocale(lang);
   const common = prompt("_common");
-  const numbers = Object.values(sikom).join(",");
+  const numbers = [...new Set(Object.values(sikom))].join(",");
 
   const agents = Object.entries(AGENTS).map(([key, def]) => {
     const tools_config = def.tools.map((tool) => {

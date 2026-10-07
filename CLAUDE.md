@@ -14,7 +14,7 @@ node livehub/chat.mjs --scenario <name>    # scripted chat against the live bot
 
 ## Layout
 
-- `backend/src/app.ts` – all routes; `lib/store.ts` – in-memory state, verification/retry policy, fees; `lib/normalize.ts` – spoken digit/date parsing; `data/seed.ts` – demo data (fixed dates).
+- `backend/src/app.ts` – public/voicebot routes; `src/admin.ts` – admin API; `public/admin.html` – booking web interface at /admin (plain HTML/JS, no build); `lib/store.ts` – in-memory state, verification/retry policy, fees; `lib/normalize.ts` – spoken digit/date parsing; `data/seed.ts` – demo data (fixed dates).
 - `livehub/topology.mjs` – agents, their tools and sub-agents (language independent); `tools.mjs` – REST tools; `locales/<lang>/` – prompts, welcome, test suite; `build-manifest.mjs` renders, `provision.mjs` applies via the LiveHub MCP API.
 
 ## Rules

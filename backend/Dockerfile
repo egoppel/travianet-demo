@@ -13,6 +13,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=8080
 COPY --from=builder /app/dist ./dist
+COPY public/ ./public/
 EXPOSE 8080
 USER node
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

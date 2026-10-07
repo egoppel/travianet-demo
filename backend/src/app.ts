@@ -10,6 +10,7 @@ import { bookingSummary, maskEmail, presentBooking, presentCustomer } from "./li
 import { parseTravelDate } from "./lib/normalize.js";
 import { REBOOK_MIN_DAYS, daysUntil, type Session, type Store } from "./lib/store.js";
 import type { Booking } from "./data/seed.js";
+import { adminPage, createAdminRouter } from "./admin.js";
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -319,32 +320,11 @@ export function createApp({ config, store }: { config: Config; store: Store }): 
 
   app.use("/api/v1", v1);
 
-  // ---- admin / demo helpers ----
-  const admin = express.Router();
-  admin.use(requireAdmin);
-  admin.post("/reset", (_req, res) => {
-    store.reset();
-    res.json({ result: "reset" });
+  // ---- admin API + booking web interface ----
+  app.use("/api/admin", requireAdmin, createAdminRouter(store));
+  app.get(["/admin", "/admin/"], (_req, res) => {
+    res.type("html").send(adminPage());
   });
-  admin.get("/state", (_req, res) => {
-    res.json({
-      sessions: [...store.sessions.values()].map((s) => ({ ...s, token: `${s.token.slice(0, 6)}…` })),
-      conversations: Object.fromEntries(store.conversations),
-      handovers: store.handovers,
-      bookings: [...store.bookings.values()],
-    });
-  });
-  admin.get("/customers", (_req, res) => {
-    res.json({
-      customers: [...store.customers.values()].map((c) => ({
-        tis_id: c.tisId,
-        name: `${c.firstName} ${c.lastName}`,
-        postal_code: c.postalCode,
-        bookings: store.bookingsOf(c.tisId).map((b) => ({ booking_number: b.bookingNumber, departure_date: b.departureDate, destination: b.destination, status: b.status })),
-      })),
-    });
-  });
-  app.use("/api/admin", admin);
 
   app.use((_req, res) => sendError(res, 404, "not_found", "Route not found."));
   app.use((err: Error & { status?: number; type?: string }, req: Request, res: Response, _next: NextFunction) => {

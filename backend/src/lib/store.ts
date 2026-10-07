@@ -10,6 +10,16 @@ import {
   type PartialDate,
 } from "./normalize.js";
 
+export class StoreError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
 export interface Session {
   token: string;
   tisId: string;
@@ -313,6 +323,57 @@ export class Store {
     booking.history.push({ at: this.now().toISOString().slice(0, 10), event: `rebooked_to_${option.departureDate}` });
     this.rebookOptions.delete(booking.bookingNumber);
     return option;
+  }
+
+  // ---- admin (web interface) ----
+
+  createCustomer(c: Customer): Customer {
+    if (this.customers.has(c.tisId)) throw new StoreError(409, "customer_exists", `TIS-ID ${c.tisId} already exists.`);
+    this.customers.set(c.tisId, c);
+    return c;
+  }
+
+  updateCustomer(tisId: string, patch: Partial<Omit<Customer, "tisId">>): Customer {
+    const c = this.customers.get(tisId);
+    if (!c) throw new StoreError(404, "customer_not_found", `No customer with TIS-ID ${tisId}.`);
+    Object.assign(c, patch);
+    return c;
+  }
+
+  deleteCustomer(tisId: string): void {
+    if (!this.customers.has(tisId)) throw new StoreError(404, "customer_not_found", `No customer with TIS-ID ${tisId}.`);
+    if (this.bookingsOf(tisId).length) throw new StoreError(409, "customer_has_bookings", "Delete the customer's bookings first.");
+    this.customers.delete(tisId);
+  }
+
+  nextBookingNumber(): string {
+    const max = Math.max(4711000, ...[...this.bookings.keys()].map(Number).filter(Number.isFinite));
+    return String(max + 1);
+  }
+
+  createBooking(b: Omit<Booking, "bookingNumber" | "history"> & { bookingNumber?: string }): Booking {
+    if (!this.customers.has(b.tisId)) throw new StoreError(400, "customer_not_found", `No customer with TIS-ID ${b.tisId}.`);
+    const bookingNumber = b.bookingNumber || this.nextBookingNumber();
+    if (this.bookings.has(bookingNumber)) throw new StoreError(409, "booking_exists", `Booking ${bookingNumber} already exists.`);
+    const booking: Booking = { ...b, bookingNumber, history: [{ at: this.now().toISOString().slice(0, 10), event: "created_by_admin" }] };
+    this.bookings.set(bookingNumber, booking);
+    return booking;
+  }
+
+  updateBooking(bookingNumber: string, patch: Partial<Omit<Booking, "bookingNumber" | "history">>): Booking {
+    const b = this.bookings.get(bookingNumber);
+    if (!b) throw new StoreError(404, "booking_not_found", `No booking ${bookingNumber}.`);
+    if (patch.tisId && !this.customers.has(patch.tisId)) throw new StoreError(400, "customer_not_found", `No customer with TIS-ID ${patch.tisId}.`);
+    Object.assign(b, patch);
+    if (patch.status && patch.status !== "cancelled") delete b.cancellation;
+    b.history.push({ at: this.now().toISOString().slice(0, 10), event: "edited_by_admin" });
+    this.rebookOptions.delete(bookingNumber);
+    return b;
+  }
+
+  deleteBooking(bookingNumber: string): void {
+    if (!this.bookings.delete(bookingNumber)) throw new StoreError(404, "booking_not_found", `No booking ${bookingNumber}.`);
+    for (const [token, s] of this.sessions) if (s.bookingNumber === bookingNumber) this.revoke(token);
   }
 
   addHandover(h: Omit<Handover, "id" | "createdAt">): Handover {

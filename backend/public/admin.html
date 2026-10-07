@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Travianet Buchungen</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1d2330; --muted: #667085; --line: #e3e6eb;
+    --accent: #0b6bcb; --accent-text: #ffffff; --danger: #c4320a;
+    --ok-bg: #e6f4ea; --ok: #1e7b34; --warn-bg: #fff4e5; --warn: #9a5b00; --bad-bg: #fdecea; --bad: #b42318; --info-bg: #e8f1fb; --info: #0b5aa8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151b; --panel: #1b1f27; --text: #e6e9ef; --muted: #98a2b3; --line: #2c323d;
+      --accent: #4c9be8; --accent-text: #0b1220; --danger: #f97066;
+      --ok-bg: #173a24; --ok: #7bd389; --warn-bg: #3d2c10; --warn: #f5c26b; --bad-bg: #42191a; --bad: #f97066; --info-bg: #142b45; --info: #8ec5ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { display: flex; align-items: center; gap: 16px; padding: 14px 24px; background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  header h1 { font-size: 17px; margin: 0; }
+  header .spacer { flex: 1; }
+  nav { display: flex; gap: 4px; }
+  nav button { background: none; border: 0; padding: 8px 12px; border-radius: 6px; color: var(--muted); font: inherit; cursor: pointer; }
+  nav button.active { background: var(--info-bg); color: var(--info); font-weight: 600; }
+  main { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+  .toolbar { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
+  .toolbar input, .toolbar select { min-width: 220px; }
+  input, select, textarea { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; width: 100%; }
+  textarea { min-height: 64px; resize: vertical; }
+  .toolbar input, .toolbar select { width: auto; }
+  button.btn { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 6px; padding: 7px 12px; cursor: pointer; white-space: nowrap; }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  button.danger { color: var(--danger); }
+  button.small { padding: 3px 8px; font-size: 13px; }
+  .table-wrap { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; background: var(--panel); position: sticky; top: 0; }
+  tr:last-child td { border-bottom: 0; }
+  td .sub { color: var(--muted); font-size: 12px; }
+  td.actions { white-space: nowrap; text-align: right; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .ok { background: var(--ok-bg); color: var(--ok); } .warn { background: var(--warn-bg); color: var(--warn); }
+  .bad { background: var(--bad-bg); color: var(--bad); } .info { background: var(--info-bg); color: var(--info); }
+  .muted { color: var(--muted); }
+  .empty { padding: 28px; text-align: center; color: var(--muted); }
+  dialog { border: 1px solid var(--line); border-radius: 12px; padding: 0; background: var(--panel); color: var(--text); width: min(820px, 96vw); }
+  dialog::backdrop { background: rgba(0,0,0,.4); }
+  dialog form { padding: 20px 22px; }
+  dialog h2 { margin: 0 0 14px; font-size: 17px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px 14px; }
+  .grid .wide { grid-column: 1 / -1; }
+  label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+  label.check { flex-direction: row; align-items: center; gap: 8px; font-size: 14px; color: var(--text); }
+  label.check input { width: auto; }
+  .dialog-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+  .error { color: var(--danger); margin-top: 10px; min-height: 1em; }
+  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 9px 16px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  #toast.show { opacity: 1; }
+  #login { max-width: 420px; margin: 12vh auto; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 24px; }
+  #login h2 { margin-top: 0; }
+  .hidden { display: none !important; }
+  pre.summary { white-space: pre-wrap; margin: 0; font: inherit; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Travianet · Buchungsverwaltung</h1>
+  <nav id="tabs">
+    <button data-tab="bookings" class="active">Buchungen</button>
+    <button data-tab="customers">Kunden</button>
+    <button data-tab="handovers">Übergaben</button>
+  </nav>
+  <span class="spacer"></span>
+  <button class="btn" id="reload">Aktualisieren</button>
+  <button class="btn danger" id="reset">Demo-Daten zurücksetzen</button>
+  <button class="btn" id="logout">Abmelden</button>
+</header>
+
+<div id="login" class="hidden">
+  <h2>Anmelden</h2>
+  <p class="muted">Bitte den Admin-Schlüssel eingeben (Umgebungsvariable <code>ADMIN_KEY</code> des Backends).</p>
+  <form id="login-form">
+    <input type="password" id="login-key" placeholder="Admin-Schlüssel" autocomplete="current-password">
+    <div class="error" id="login-error"></div>
+    <div class="dialog-actions"><button class="btn primary" type="submit">Anmelden</button></div>
+  </form>
+</div>
+
+<main id="app" class="hidden">
+  <section data-panel="bookings">
+    <div class="toolbar">
+      <input id="search" type="search" placeholder="Suche: Name, TIS-ID, Vorgang, Ziel …">
+      <select id="status-filter">
+        <option value="">Alle Status</option>
+        <option value="confirmed">Bestätigt</option>
+        <option value="cancelled">Storniert</option>
+        <option value="completed">Abgeschlossen</option>
+      </select>
+      <span class="spacer" style="flex:1"></span>
+      <button class="btn primary" id="new-booking">Neue Buchung</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Vorgang</th><th>Kunde</th><th>Reise</th><th>Zeitraum</th><th>Status</th><th>Zahlung</th><th>Unterlagen</th><th></th></tr></thead>
+        <tbody id="bookings-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section data-panel="customers" class="hidden">
+    <div class="toolbar">
+      <input id="customer-search" type="search" placeholder="Suche: Name, TIS-ID, PLZ …">
+      <span class="spacer" style="flex:1"></span>
+      <button class="btn primary" id="new-customer">Neuer Kunde</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>TIS-ID</th><th>Name</th><th>Adresse</th><th>Kontakt</th><th>Buchungen</th><th></th></tr></thead>
+        <tbody id="customers-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section data-panel="handovers" class="hidden">
+    <p class="muted">Vom Voicebot an Sikom übergebene Fälle (Service 2 = Stornierung, 3 = sonstige Themen, 4 = Angebotsanfrage). Neueste zuerst.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>ID</th><th>Zeit</th><th>Service</th><th>Thema</th><th>Identifiziert</th><th>Kunde / Vorgang</th><th>Zusammenfassung</th></tr></thead>
+        <tbody id="handovers-body"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<dialog id="booking-dialog">
+  <form id="booking-form" method="dialog">
+    <h2 id="booking-title">Buchung</h2>
+    <div class="grid">
+      <label>Vorgangsnummer<input name="bookingNumber" placeholder="automatisch"></label>
+      <label>Kunde (TIS-ID)<select name="tisId" required></select></label>
+      <label>Status<select name="status">
+        <option value="confirmed">Bestätigt</option><option value="cancelled">Storniert</option><option value="completed">Abgeschlossen</option>
+      </select></label>
+      <label>Reiseveranstalter<input name="tourOperator" required></label>
+      <label>Reiseziel<input name="destination" required></label>
+      <label>Hotel / Schiff<input name="hotel" required></label>
+      <label>Zimmer<input name="roomType"></label>
+      <label>Verpflegung<select name="board">
+        <option value="room_only">Ohne Verpflegung</option><option value="breakfast">Frühstück</option><option value="half_board">Halbpension</option>
+        <option value="full_board">Vollpension</option><option value="all_inclusive">All inclusive</option>
+      </select></label>
+      <label>Abreise<input type="date" name="departureDate" required></label>
+      <label>Rückreise<input type="date" name="returnDate" required></label>
+      <label>Abflughafen<input name="departureAirport"></label>
+      <label>Hinflug<input name="flightOutbound"></label>
+      <label>Rückflug<input name="flightReturn"></label>
+      <label>Reisepreis<input type="number" step="1" min="0" name="priceTotal" required></label>
+      <label>Bezahlt<input type="number" step="1" min="0" name="amountPaid"></label>
+      <label>Währung<select name="currency"><option>EUR</option><option>CHF</option></select></label>
+      <label>Zahlungsstatus<select name="paymentStatus">
+        <option value="paid">Vollständig bezahlt</option><option value="deposit_paid">Anzahlung bezahlt</option><option value="overdue">Überfällig</option>
+        <option value="refund_pending">Erstattung in Bearbeitung</option><option value="refunded">Erstattet</option>
+      </select></label>
+      <label>Restzahlung fällig am<input type="date" name="balanceDueDate"></label>
+      <label>Unterlagen<select name="documentStatus">
+        <option value="pending">Noch nicht verfügbar</option><option value="available">Verfügbar</option><option value="sent">Versendet</option>
+      </select></label>
+      <label>Unterlagen verfügbar ab<input type="date" name="documentsAvailableFrom" required></label>
+      <label class="check"><input type="checkbox" name="travelInsurance"> Reiserücktrittsversicherung</label>
+      <label class="wide">Reisende (eine Person pro Zeile: Vorname Nachname)<textarea name="travellers" required></textarea></label>
+    </div>
+    <div class="error" id="booking-error"></div>
+    <div class="dialog-actions">
+      <button class="btn" type="button" data-close>Abbrechen</button>
+      <button class="btn primary" type="submit">Speichern</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="customer-dialog">
+  <form id="customer-form" method="dialog">
+    <h2 id="customer-title">Kunde</h2>
+    <div class="grid">
+      <label>TIS-ID (8 Ziffern)<input name="tisId" required pattern="\d{8}" inputmode="numeric"></label>
+      <label>Anrede<select name="salutation"><option value="herr">Herr</option><option value="frau">Frau</option></select></label>
+      <label>Vorname<input name="firstName" required></label>
+      <label>Nachname<input name="lastName" required></label>
+      <label>E-Mail<input type="email" name="email" required></label>
+      <label>Telefon<input name="phone"></label>
+      <label>Straße<input name="street"></label>
+      <label>PLZ<input name="postalCode" required pattern="\d{4,5}" inputmode="numeric"></label>
+      <label>Ort<input name="city"></label>
+      <label>Land<select name="country"><option>DE</option><option>AT</option><option>CH</option></select></label>
+    </div>
+    <div class="error" id="customer-error"></div>
+    <div class="dialog-actions">
+      <button class="btn" type="button" data-close>Abbrechen</button>
+      <button class="btn primary" type="submit">Speichern</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast"></div>
+
+<script>
+const KEY_STORAGE = "travianet-admin-key";
+const state = { bookings: [], customers: [], handovers: [], editing: null };
+
+const $ = (sel) => document.querySelector(sel);
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtDate = (iso) => iso ? new Date(iso + "T12:00:00Z").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : "–";
+const fmtMoney = (n, cur) => new Intl.NumberFormat("de-DE", { style: "currency", currency: cur || "EUR", maximumFractionDigits: 0 }).format(n);
+
+const LABELS = {
+  status: { confirmed: ["Bestätigt", "ok"], cancelled: ["Storniert", "bad"], completed: ["Abgeschlossen", "info"] },
+  payment: { paid: ["Bezahlt", "ok"], deposit_paid: ["Anzahlung", "warn"], overdue: ["Überfällig", "bad"], refund_pending: ["Erstattung offen", "info"], refunded: ["Erstattet", "info"] },
+  documents: { pending: ["Ausstehend", "warn"], available: ["Verfügbar", "info"], sent: ["Versendet", "ok"] },
+};
+const badge = (group, code) => { const [text, cls] = LABELS[group][code] ?? [code, "info"]; return `<span class="badge ${cls}">${esc(text)}</span>`; };
+
+function getKey() { try { return localStorage.getItem(KEY_STORAGE) ?? ""; } catch { return ""; } }
+function setKey(k) { try { k ? localStorage.setItem(KEY_STORAGE, k) : localStorage.removeItem(KEY_STORAGE); } catch {} }
+
+async function api(method, path, body) {
+  const res = await fetch("/api/admin" + path, {
+    method,
+    headers: { "Content-Type": "application/json", "X-Admin-Key": getKey() },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (res.status === 204) return null;
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.message || `Fehler ${res.status}`);
+    err.status = res.status; err.code = data.error;
+    throw err;
+  }
+  return data;
+}
+
+function toast(msg) {
+  const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => t.classList.remove("show"), 2500);
+}
+
+function showLogin(message = "") {
+  $("#app").classList.add("hidden"); $("#login").classList.remove("hidden");
+  $("#login-error").textContent = message; $("#login-key").focus();
+}
+
+async function load() {
+  try {
+    const [b, c, h] = await Promise.all([api("GET", "/bookings"), api("GET", "/customers"), api("GET", "/handovers")]);
+    state.bookings = b.bookings; state.customers = c.customers; state.handovers = h.handovers;
+    $("#login").classList.add("hidden"); $("#app").classList.remove("hidden");
+    render();
+  } catch (e) {
+    if (e.status === 401) return showLogin(getKey() ? "Der Schlüssel ist ungültig." : "");
+    if (e.status === 403) return showLogin("Die Verwaltung ist deaktiviert: Bitte ADMIN_KEY im Backend setzen und neu starten.");
+    toast(e.message);
+  }
+}
+
+function render() { renderBookings(); renderCustomers(); renderHandovers(); }
+
+function renderBookings() {
+  const q = $("#search").value.trim().toLowerCase();
+  const status = $("#status-filter").value;
+  const rows = state.bookings.filter((b) => {
+    if (status && b.status !== status) return false;
+    if (!q) return true;
+    const c = b.customer ?? {};
+    return [b.bookingNumber, b.tisId, b.destination, b.hotel, b.tourOperator, c.firstName, c.lastName, c.postalCode]
+      .some((v) => String(v ?? "").toLowerCase().includes(q));
+  });
+  $("#bookings-body").innerHTML = rows.length ? rows.map((b) => {
+    const c = b.customer ?? {};
+    const open = Math.max(0, b.priceTotal - b.amountPaid);
+    return `<tr>
+      <td><strong>${esc(b.bookingNumber)}</strong><div class="sub">${esc(b.tourOperator)}</div></td>
+      <td>${esc(c.firstName)} ${esc(c.lastName)}<div class="sub">TIS ${esc(b.tisId)} · PLZ ${esc(c.postalCode)}</div></td>
+      <td>${esc(b.destination)}<div class="sub">${esc(b.hotel)} · ${b.travellers.length} Pers.</div></td>
+      <td>${fmtDate(b.departureDate)} – ${fmtDate(b.returnDate)}</td>
+      <td>${badge("status", b.status)}${b.cancellation ? `<div class="sub">Gebühr ${fmtMoney(b.cancellation.fee, b.currency)}</div>` : ""}</td>
+      <td>${badge("payment", b.paymentStatus)}<div class="sub">${fmtMoney(b.priceTotal, b.currency)}${open ? ` · offen ${fmtMoney(open, b.currency)}` : ""}</div></td>
+      <td>${badge("documents", b.documentStatus)}<div class="sub">ab ${fmtDate(b.documentsAvailableFrom)}</div></td>
+      <td class="actions">
+        <button class="btn small" data-edit-booking="${esc(b.bookingNumber)}">Bearbeiten</button>
+        <button class="btn small danger" data-delete-booking="${esc(b.bookingNumber)}">Löschen</button>
+      </td></tr>`;
+  }).join("") : `<tr><td colspan="8" class="empty">Keine Buchungen gefunden.</td></tr>`;
+}
+
+function renderCustomers() {
+  const q = $("#customer-search").value.trim().toLowerCase();
+  const rows = state.customers.filter((c) => !q || [c.tisId, c.firstName, c.lastName, c.postalCode, c.city, c.email].some((v) => String(v ?? "").toLowerCase().includes(q)));
+  $("#customers-body").innerHTML = rows.length ? rows.map((c) => `<tr>
+      <td><strong>${esc(c.tisId)}</strong></td>
+      <td>${c.salutation === "frau" ? "Frau" : "Herr"} ${esc(c.firstName)} ${esc(c.lastName)}</td>
+      <td>${esc(c.street)}<div class="sub">${esc(c.postalCode)} ${esc(c.city)} · ${esc(c.country)}</div></td>
+      <td>${esc(c.email)}<div class="sub">${esc(c.phone)}</div></td>
+      <td>${c.bookingCount}</td>
+      <td class="actions">
+        <button class="btn small" data-edit-customer="${esc(c.tisId)}">Bearbeiten</button>
+        <button class="btn small danger" data-delete-customer="${esc(c.tisId)}">Löschen</button>
+      </td></tr>`).join("") : `<tr><td colspan="6" class="empty">Keine Kunden gefunden.</td></tr>`;
+}
+
+function renderHandovers() {
+  const names = { 2: "2 · Stornierung", 3: "3 · Sonstiges", 4: "4 · Angebot" };
+  $("#handovers-body").innerHTML = state.handovers.length ? state.handovers.map((h) => `<tr>
+      <td><strong>${esc(h.id)}</strong></td>
+      <td>${new Date(h.createdAt).toLocaleString("de-DE")}</td>
+      <td>${esc(names[h.service] ?? h.service)}</td>
+      <td>${esc(h.topic)}</td>
+      <td>${h.verified ? '<span class="badge ok">Ja</span>' : '<span class="badge warn">Nein</span>'}</td>
+      <td>${h.tisId ? `TIS ${esc(h.tisId)}` : "–"}${h.bookingNumber ? `<div class="sub">Vorgang ${esc(h.bookingNumber)}</div>` : ""}${h.callerPhone ? `<div class="sub">${esc(h.callerPhone)}</div>` : ""}</td>
+      <td><pre class="summary">${esc(h.summary)}</pre></td></tr>`).join("")
+    : `<tr><td colspan="7" class="empty">Noch keine Übergaben.</td></tr>`;
+}
+
+// ---- booking dialog ----
+function openBooking(number) {
+  const form = $("#booking-form");
+  const b = number ? state.bookings.find((x) => x.bookingNumber === number) : null;
+  state.editing = b ? b.bookingNumber : null;
+  $("#booking-title").textContent = b ? `Buchung ${b.bookingNumber} bearbeiten` : "Neue Buchung";
+  form.tisId.innerHTML = state.customers.map((c) => `<option value="${esc(c.tisId)}">${esc(c.tisId)} · ${esc(c.firstName)} ${esc(c.lastName)}</option>`).join("");
+  form.reset();
+  form.bookingNumber.disabled = !!b;
+  const defaults = { tisId: state.customers[0]?.tisId, status: "confirmed", board: "breakfast", currency: "EUR", paymentStatus: "deposit_paid", documentStatus: "pending", amountPaid: 0 };
+  const v = b ?? defaults;
+  for (const el of form.elements) {
+    if (!el.name || el.name === "travellers") continue;
+    if (el.type === "checkbox") el.checked = !!v[el.name];
+    else el.value = v[el.name] ?? "";
+  }
+  form.travellers.value = b ? b.travellers.map((t) => `${t.firstName} ${t.lastName}`).join("\n") : "";
+  $("#booking-error").textContent = "";
+  $("#booking-dialog").showModal();
+}
+
+function bookingPayload(form) {
+  const p = {};
+  for (const el of form.elements) {
+    if (!el.name || el.disabled || el.name === "travellers") continue;
+    if (el.type === "checkbox") p[el.name] = el.checked;
+    else if (el.type === "number") p[el.name] = el.value === "" ? 0 : Number(el.value);
+    else p[el.name] = el.value;
+  }
+  if (!p.bookingNumber) delete p.bookingNumber;
+  p.balanceDueDate = p.balanceDueDate || null;
+  p.travellers = form.travellers.value.split("\n").map((l) => l.trim()).filter(Boolean).map((l) => {
+    const parts = l.split(/\s+/); const lastName = parts.length > 1 ? parts.pop() : "";
+    return { firstName: parts.join(" "), lastName };
+  });
+  return p;
+}
+
+$("#booking-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const form = ev.target;
+  const payload = bookingPayload(form);
+  if (payload.travellers.some((t) => !t.lastName)) return ($("#booking-error").textContent = "Bitte jeden Reisenden mit Vor- und Nachnamen angeben.");
+  try {
+    if (state.editing) await api("PATCH", `/bookings/${encodeURIComponent(state.editing)}`, payload);
+    else await api("POST", "/bookings", payload);
+    $("#booking-dialog").close();
+    toast(state.editing ? "Buchung gespeichert" : "Buchung angelegt");
+    load();
+  } catch (e) { $("#booking-error").textContent = e.message; }
+});
+
+// ---- customer dialog ----
+function openCustomer(tisId) {
+  const form = $("#customer-form");
+  const c = tisId ? state.customers.find((x) => x.tisId === tisId) : null;
+  state.editing = c ? c.tisId : null;
+  $("#customer-title").textContent = c ? `Kunde ${c.tisId} bearbeiten` : "Neuer Kunde";
+  form.reset();
+  for (const el of form.elements) if (el.name) el.value = c?.[el.name] ?? (el.tagName === "SELECT" ? el.options[0].value : "");
+  form.tisId.disabled = !!c;
+  $("#customer-error").textContent = "";
+  $("#customer-dialog").showModal();
+}
+
+$("#customer-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const form = ev.target;
+  const p = {};
+  for (const el of form.elements) if (el.name && !el.disabled) p[el.name] = el.value.trim();
+  try {
+    if (state.editing) await api("PUT", `/customers/${encodeURIComponent(state.editing)}`, p);
+    else await api("POST", "/customers", p);
+    $("#customer-dialog").close();
+    toast(state.editing ? "Kunde gespeichert" : "Kunde angelegt");
+    load();
+  } catch (e) { $("#customer-error").textContent = e.message; }
+});
+
+// ---- events ----
+document.addEventListener("click", async (ev) => {
+  const t = ev.target.closest("button"); if (!t) return;
+  if (t.dataset.close !== undefined) return t.closest("dialog").close();
+  if (t.dataset.tab) {
+    document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("active", b === t));
+    document.querySelectorAll("[data-panel]").forEach((p) => p.classList.toggle("hidden", p.dataset.panel !== t.dataset.tab));
+    return;
+  }
+  if (t.dataset.editBooking) return openBooking(t.dataset.editBooking);
+  if (t.dataset.editCustomer) return openCustomer(t.dataset.editCustomer);
+  if (t.dataset.deleteBooking && confirm(`Buchung ${t.dataset.deleteBooking} wirklich löschen?`)) {
+    try { await api("DELETE", `/bookings/${encodeURIComponent(t.dataset.deleteBooking)}`); toast("Buchung gelöscht"); load(); } catch (e) { toast(e.message); }
+  }
+  if (t.dataset.deleteCustomer && confirm(`Kunde ${t.dataset.deleteCustomer} wirklich löschen?`)) {
+    try { await api("DELETE", `/customers/${encodeURIComponent(t.dataset.deleteCustomer)}`); toast("Kunde gelöscht"); load(); } catch (e) { toast(e.message); }
+  }
+});
+$("#new-booking").addEventListener("click", () => openBooking(null));
+$("#new-customer").addEventListener("click", () => openCustomer(null));
+$("#reload").addEventListener("click", () => load().then(() => toast("Aktualisiert")));
+$("#reset").addEventListener("click", async () => {
+  if (!confirm("Alle Buchungen, Kunden, Sitzungen und Übergaben auf die Demo-Daten zurücksetzen?")) return;
+  try { await api("POST", "/reset"); toast("Demo-Daten zurückgesetzt"); load(); } catch (e) { toast(e.message); }
+});
+$("#logout").addEventListener("click", () => { setKey(""); showLogin(); });
+$("#search").addEventListener("input", renderBookings);
+$("#status-filter").addEventListener("change", renderBookings);
+$("#customer-search").addEventListener("input", renderCustomers);
+$("#login-form").addEventListener("submit", (ev) => { ev.preventDefault(); setKey($("#login-key").value.trim()); load(); });
+
+load();
+</script>
+</body>
+</html>

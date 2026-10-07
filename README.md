@@ -109,7 +109,9 @@ All `/api/v1` routes need `X-Api-Key` (when `API_KEY` is set). 🔒 = needs the 
 | `POST /api/v1/booking/payment-link` 🔒 | Payment link for the outstanding balance. |
 | `POST /api/v1/handovers` | `{service: 2/3/4, topic, summary, tis_id?}`. Stores the data for Sikom ("Datenübergabe an Service von travianet"). |
 | `GET /api/v1/handovers` | List of hand-overs (admin). |
-| `POST /api/admin/reset` · `GET /api/admin/state` · `GET /api/admin/customers` | Demo helpers (admin). |
+| `GET/POST /api/admin/bookings`, `PATCH/DELETE /api/admin/bookings/{number}` | Manage bookings (admin page). |
+| `GET/POST /api/admin/customers`, `PUT/DELETE /api/admin/customers/{tisId}` | Manage customers (admin page). |
+| `GET /api/admin/handovers` · `POST /api/admin/reset` · `GET /api/admin/state` | Hand-overs, reset demo data, raw state (admin). |
 
 Every response carries machine codes **and** labels and spoken dates in the requested language
 (`Accept-Language: de-DE` / `en`), e.g. `departure_date_spoken: "Donnerstag, 15. Juli 2027"`.
@@ -132,6 +134,18 @@ Every response carries machine codes **and** labels and spoken dates in the requ
 | 64209753 | 04109 | 01.08.2026 | Maria Schulz, Rhodos (trip completed) |
 
 Data lives in memory: restarting the container or calling `POST /api/admin/reset` restores it.
+
+### Booking admin page
+
+`https://<API_HOST>/admin` is a small web interface for the demo data. It has three tabs:
+
+- **Buchungen:** search and filter bookings, create, edit (status, dates, payment, documents, travellers) or delete them.
+- **Kunden:** create, edit or delete customers (TIS-ID, postal code, contact).
+- **Übergaben:** the hand-overs the voicebot recorded for Sikom.
+
+"Demo-Daten zurücksetzen" restores the seed data. Changes take effect for the voicebot immediately; a booking you create here can be verified on the phone straight away.
+
+The page itself is public, but every action goes through `/api/admin/*` with the `X-Admin-Key` header. The page asks for the key once and keeps it in the browser's local storage until you log out. Without `ADMIN_KEY` the admin API is disabled in production (403).
 
 ## Deploy to the VPS
 

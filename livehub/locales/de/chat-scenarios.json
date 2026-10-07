@@ -1,26 +1,74 @@
 {
   "welcome": {
-    "turns": ["Ich möchte etwas zu meiner Buchung wissen."]
+    "turns": [
+      "Ich möchte etwas zu meiner Buchung wissen."
+    ]
   },
   "happy-path-documents": {
-    "turns": ["Ich habe eine Frage zu meiner Buchung, sind meine Reiseunterlagen schon da?", "zwölf vierunddreißig sechsundfünfzig achtundsiebzig", "zehn eins eins sieben", "fünfzehnter Juli 2027", "Nein danke, das war alles."]
+    "turns": [
+      "Ich habe eine Frage zu meiner Buchung, sind meine Reiseunterlagen schon da?",
+      "zwölf vierunddreißig sechsundfünfzig achtundsiebzig",
+      "zehn eins eins sieben",
+      "fünfzehnter Juli 2027",
+      "Nein danke, das war alles."
+    ]
   },
   "cancel": {
-    "turns": ["Ich möchte meine Reise stornieren.", "1029 3847", "80331", "14. November 2026", "Ja, bitte verbindlich stornieren.", "Krankheit", "Nein, danke."]
+    "turns": [
+      "Ich möchte meine Reise stornieren.",
+      "1029 3847",
+      "80331",
+      "14. November 2026",
+      "Ja, bitte verbindlich stornieren.",
+      "Krankheit",
+      "Nein, danke."
+    ]
   },
   "rebook": {
-    "turns": ["Ich möchte meine Reise umbuchen.", "12345678", "10117", "15.07.2027", "Auf den ersten August bitte.", "Den ersten August nehme ich.", "Ja, bitte umbuchen.", "Nein, danke."]
+    "turns": [
+      "Ich möchte meine Reise umbuchen.",
+      "12345678",
+      "10117",
+      "15.07.2027",
+      "Auf den ersten August bitte.",
+      "Den ersten August nehme ich.",
+      "Ja, bitte umbuchen.",
+      "Nein, danke."
+    ]
   },
   "wrong-length": {
-    "turns": ["Frage zur Zahlung meiner Reise.", "2048151", "20481516", "50667", "24. Oktober 2026"]
+    "turns": [
+      "Frage zur Zahlung meiner Reise.",
+      "2048151",
+      "2 0 4 8 1 5 1 6",
+      "50667",
+      "24. Oktober 2026",
+      "Nein danke, das war alles."
+    ]
   },
   "wrong-data-no-loop": {
-    "turns": ["Ich habe eine Buchung und möchte umbuchen.", "11223344", "12345", "1. März 2027", "Ja, die Nummer stimmt so. 11223344, 12345, 1. März 2027", "Ja, gerne."]
+    "turns": [
+      "Ich habe eine Buchung und möchte umbuchen.",
+      "11223344",
+      "12345",
+      "1. März 2027",
+      "Ja, die Nummer stimmt so. 11223344, 12345, 1. März 2027",
+      "Ja, gerne."
+    ]
   },
   "offer": {
-    "turns": ["Ich hätte gern ein Angebot für einen Familienurlaub.", "Nein, ich bin noch kein Kunde.", "In die Türkei.", "In den Herbstferien.", "Zwei Erwachsene und ein Kind.", "Ja, gerne."]
+    "turns": [
+      "Ich hätte gern ein Angebot für einen Familienurlaub.",
+      "Nein, ich bin noch kein Kunde.",
+      "In die Türkei.",
+      "In den Herbstferien.",
+      "Zwei Erwachsene und ein Kind.",
+      "Ja, gerne."
+    ]
   },
   "english-caller": {
-    "turns": ["Hello, do you speak English? I have a question about my booking."]
+    "turns": [
+      "Hello, do you speak English? I have a question about my booking."
+    ]
   }
 }

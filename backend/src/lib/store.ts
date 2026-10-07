@@ -1,6 +1,8 @@
 import { randomBytes } from "node:crypto";
 import { bookings as seedBookings, customers as seedCustomers, type Booking, type Customer } from "../data/seed.js";
 import type { Config } from "../config.js";
+import type { Lang } from "./i18n.js";
+import { composeMessage, type OutboxKind, type OutboxMessage, type PaymentLink } from "./outbox.js";
 import {
   normalizePostalCode,
   normalizeTisId,
@@ -111,6 +113,8 @@ export class Store {
   conversations = new Map<string, ConversationState>();
   handovers: Handover[] = [];
   rebookOptions = new Map<string, RebookOption[]>();
+  outbox: OutboxMessage[] = [];
+  paymentLinks = new Map<string, PaymentLink>();
 
   constructor(
     private readonly config: Config,
@@ -129,6 +133,8 @@ export class Store {
     this.sessions.clear();
     this.conversations.clear();
     this.handovers = [];
+    this.outbox = [];
+    this.paymentLinks.clear();
     this.rebookOptions.clear();
   }
 
@@ -374,6 +380,61 @@ export class Store {
   deleteBooking(bookingNumber: string): void {
     if (!this.bookings.delete(bookingNumber)) throw new StoreError(404, "booking_not_found", `No booking ${bookingNumber}.`);
     for (const [token, s] of this.sessions) if (s.bookingNumber === bookingNumber) this.revoke(token);
+  }
+
+  // ---- simulated email channel ----
+
+  /** Records an email that would have been sent to the booking's customer. */
+  sendMail(
+    booking: Booking,
+    lang: Lang,
+    extra: Parameters<typeof composeMessage>[3],
+  ): OutboxMessage {
+    const customer = this.customers.get(booking.tisId)!;
+    const message: OutboxMessage = {
+      id: `M-${String(this.outbox.length + 1).padStart(4, "0")}`,
+      createdAt: this.now().toISOString(),
+      kind: extra.kind as OutboxKind,
+      to: customer.email,
+      customerName: `${customer.firstName} ${customer.lastName}`,
+      bookingNumber: booking.bookingNumber,
+      language: lang,
+      ...composeMessage(customer, booking, lang, extra),
+      ...(extra.kind === "payment_link" ? { link: extra.link } : {}),
+    };
+    this.outbox.push(message);
+    return message;
+  }
+
+  createPaymentLink(booking: Booking, amount: number): PaymentLink {
+    const link: PaymentLink = {
+      id: randomBytes(12).toString("base64url"),
+      bookingNumber: booking.bookingNumber,
+      amount,
+      currency: booking.currency,
+      createdAt: this.now().toISOString(),
+      paidAt: null,
+    };
+    this.paymentLinks.set(link.id, link);
+    return link;
+  }
+
+  /** Mock payment: settles the amount of the link on the booking. */
+  pay(linkId: string): { link: PaymentLink; booking: Booking } {
+    const link = this.paymentLinks.get(linkId);
+    if (!link) throw new StoreError(404, "payment_link_not_found", "Unknown payment link.");
+    const booking = this.bookings.get(link.bookingNumber);
+    if (!booking) throw new StoreError(404, "booking_not_found", "The booking no longer exists.");
+    if (!link.paidAt) {
+      link.paidAt = this.now().toISOString();
+      booking.amountPaid = Math.min(booking.priceTotal, booking.amountPaid + link.amount);
+      if (booking.amountPaid >= booking.priceTotal) {
+        booking.paymentStatus = "paid";
+        booking.balanceDueDate = null;
+      }
+      booking.history.push({ at: link.paidAt.slice(0, 10), event: "paid_via_payment_link" });
+    }
+    return { link, booking };
   }
 
   addHandover(h: Omit<Handover, "id" | "createdAt">): Handover {

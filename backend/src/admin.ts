@@ -1,6 +1,9 @@
 import express, { type NextFunction, type Request, type Response, type Router } from "express";
 import { readFileSync } from "node:fs";
 import { z } from "zod";
+import type { Booking } from "./data/seed.js";
+import { money, type PaymentLink } from "./lib/outbox.js";
+import { formatDate } from "./lib/i18n.js";
 import { StoreError, type Store } from "./lib/store.js";
 
 /**
@@ -123,6 +126,15 @@ export function createAdminRouter(store: Store): Router {
     res.status(204).end();
   });
 
+  admin.get("/outbox", (_req, res) => {
+    res.json({
+      messages: [...store.outbox].reverse().map((m) => ({
+        ...m,
+        paidAt: m.link ? store.paymentLinks.get(m.link.split("/").pop()!)?.paidAt ?? null : undefined,
+      })),
+    });
+  });
+
   admin.get("/handovers", (_req, res) => {
     res.json({ handovers: [...store.handovers].reverse() });
   });
@@ -138,4 +150,29 @@ export function createAdminRouter(store: Store): Router {
 /** The single-page web interface. Resolves to backend/public both from src/ (dev) and dist/ (build). */
 export function adminPage(): string {
   return readFileSync(new URL("../public/admin.html", import.meta.url), "utf8");
+}
+
+const esc = (v: unknown) => String(v ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+/** Mock payment page behind the payment link from the simulated email (German, no real payment). */
+export function paymentPage(data: { link: PaymentLink; booking: Booking } | null): string {
+  const body = !data
+    ? `<h1>Link ungültig</h1><p>Dieser Zahlungslink ist nicht bekannt oder abgelaufen.</p>`
+    : data.link.paidAt
+      ? `<h1>Vielen Dank!</h1><p>Ihre Zahlung über <strong>${esc(money(data.link.amount, data.link.currency, "de"))}</strong> für Vorgang ${esc(data.booking.bookingNumber)} ist eingegangen.</p><p class="muted">Bezahlt am ${esc(new Date(data.link.paidAt).toLocaleString("de-DE"))}</p>`
+      : `<h1>Restzahlung</h1>
+         <dl><dt>Vorgang</dt><dd>${esc(data.booking.bookingNumber)}</dd>
+         <dt>Reise</dt><dd>${esc(data.booking.destination)}, ${esc(formatDate(data.booking.departureDate, "de"))}</dd>
+         <dt>Betrag</dt><dd class="amount">${esc(money(data.link.amount, data.link.currency, "de"))}</dd></dl>
+         <form method="post"><button>Jetzt bezahlen</button></form>`;
+  return `<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Travianet Zahlung</title><style>
+:root{--bg:#f6f7f9;--panel:#fff;--text:#1d2330;--muted:#667085;--line:#e3e6eb;--accent:#0b6bcb}
+@media (prefers-color-scheme:dark){:root{--bg:#12151b;--panel:#1b1f27;--text:#e6e9ef;--muted:#98a2b3;--line:#2c323d;--accent:#4c9be8}}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,sans-serif;padding:16px}
+main{max-width:440px;margin:10vh auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:28px}
+h1{font-size:20px;margin:0 0 16px}dl{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:0 0 22px}dt{color:var(--muted)}dd{margin:0}
+.amount{font-size:20px;font-weight:700}.muted{color:var(--muted)}.demo{margin-top:22px;font-size:12px;color:var(--muted)}
+button{width:100%;padding:11px;border:0;border-radius:8px;background:var(--accent);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+</style></head><body><main>${body}<p class="demo">Demo von Travianet – es wird kein echtes Geld bewegt.</p></main></body></html>`;
 }

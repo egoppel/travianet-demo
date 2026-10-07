@@ -111,7 +111,8 @@ All `/api/v1` routes need `X-Api-Key` (when `API_KEY` is set). 🔒 = needs the 
 | `GET /api/v1/handovers` | List of hand-overs (admin). |
 | `GET/POST /api/admin/bookings`, `PATCH/DELETE /api/admin/bookings/{number}` | Manage bookings (admin page). |
 | `GET/POST /api/admin/customers`, `PUT/DELETE /api/admin/customers/{tisId}` | Manage customers (admin page). |
-| `GET /api/admin/handovers` · `POST /api/admin/reset` · `GET /api/admin/state` | Hand-overs, reset demo data, raw state (admin). |
+| `GET /api/admin/handovers` · `GET /api/admin/outbox` · `POST /api/admin/reset` · `GET /api/admin/state` | Hand-overs, simulated emails, reset demo data, raw state (admin). |
+| `GET /pay/{id}` · `POST /pay/{id}` | Mock payment page behind the payment link (public, random id). |
 
 Every response carries machine codes **and** labels and spoken dates in the requested language
 (`Accept-Language: de-DE` / `en`), e.g. `departure_date_spoken: "Donnerstag, 15. Juli 2027"`.
@@ -142,8 +143,22 @@ Data lives in memory: restarting the container or calling `POST /api/admin/reset
 - **Buchungen:** search and filter bookings, create, edit (status, dates, payment, documents, travellers) or delete them.
 - **Kunden:** create, edit or delete customers (TIS-ID, postal code, contact).
 - **Übergaben:** the hand-overs the voicebot recorded for Sikom.
+- **E-Mails:** the simulated outbox (see below).
 
 "Demo-Daten zurücksetzen" restores the seed data. Changes take effect for the voicebot immediately; a booking you create here can be verified on the phone straight away.
+
+### Simulated emails and the payment link
+
+The backend never sends real emails. Every email the bot triggers is written to an outbox instead, and shown on the "E-Mails" tab:
+
+| Trigger | Email |
+|---|---|
+| `trv_send_payment_link` | Payment link for the outstanding balance |
+| `trv_resend_documents` (documents available) | Travel documents (no files attached) |
+| `trv_cancel_booking` | Cancellation confirmation with fee and refund |
+| `trv_rebook_booking` | Rebooking confirmation with the new dates and price |
+
+Emails are written in the caller's language (`Accept-Language`). The payment link points to a mock payment page on the backend (`/pay/<id>`, random id). "Jetzt bezahlen" settles the balance, so the booking shows "Bezahlt" and the bot then reports nothing left to pay. No real money is involved; the page says so. "Demo-Daten zurücksetzen" also clears the outbox and payment links.
 
 The page itself is public, but every action goes through `/api/admin/*` with the `X-Admin-Key` header. The page asks for the key once and keeps it in the browser's local storage until you log out. Without `ADMIN_KEY` the admin API is disabled in production (403).
 

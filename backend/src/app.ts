@@ -10,7 +10,7 @@ import { bookingSummary, maskEmail, presentBooking, presentCustomer } from "./li
 import { parseTravelDate } from "./lib/normalize.js";
 import { REBOOK_MIN_DAYS, daysUntil, type Session, type Store } from "./lib/store.js";
 import type { Booking } from "./data/seed.js";
-import { adminPage, createAdminRouter } from "./admin.js";
+import { adminPage, createAdminRouter, paymentPage } from "./admin.js";
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -60,6 +60,8 @@ export function createApp({ config, store }: { config: Config; store: Store }): 
     }),
   );
   app.use(cors());
+  // behind Traefik: use X-Forwarded-Proto/Host for links in simulated emails
+  app.set("trust proxy", true);
   app.use(express.json());
 
   app.use((req, _res, next) => {
@@ -209,6 +211,7 @@ export function createApp({ config, store }: { config: Config; store: Store }): 
     if (b.status !== "confirmed") return res.json({ result: "not_cancellable", status: b.status });
     const q = store.cancel(b, String(req.body?.reason ?? ""));
     req.log.info({ booking: b.bookingNumber, fee: q.fee }, "booking cancelled");
+    store.sendMail(b, req.lang, { kind: "cancellation_confirmation", fee: q.fee, refund: q.refundAmount, stillDue: q.amountStillDue });
     res.json({
       result: "cancelled",
       booking_number: b.bookingNumber,
@@ -253,6 +256,7 @@ export function createApp({ config, store }: { config: Config; store: Store }): 
     if (!confirmed) return sendError(res, 400, "confirmation_required", "Set confirmed=true after the caller agreed to the new dates and costs.");
     const o = store.rebook(b, optionId);
     if (!o) return sendError(res, 409, "unknown_option", "Unknown option_id. Request rebooking options first.");
+    store.sendMail(b, req.lang, { kind: "rebooking_confirmation", newPrice: b.priceTotal });
     res.json({
       result: "rebooked",
       booking_number: b.bookingNumber,
@@ -275,6 +279,7 @@ export function createApp({ config, store }: { config: Config; store: Store }): 
     }
     b.documentStatus = "sent";
     b.history.push({ at: store.now().toISOString().slice(0, 10), event: "documents_sent" });
+    store.sendMail(b, req.lang, { kind: "documents" });
     res.json({ result: "sent", sent_to: email });
   });
 
@@ -282,6 +287,8 @@ export function createApp({ config, store }: { config: Config; store: Store }): 
     const b = res.locals.booking as Booking;
     const balance = Math.max(0, b.priceTotal - b.amountPaid);
     if (balance === 0 || b.status !== "confirmed") return res.json({ result: "nothing_to_pay" });
+    const link = store.createPaymentLink(b, balance);
+    store.sendMail(b, req.lang, { kind: "payment_link", amount: balance, link: `${req.protocol}://${req.host}/pay/${link.id}` });
     res.json({ result: "sent", amount: balance, currency: b.currency, sent_to: maskEmail(store.customers.get(b.tisId)!.email) });
   });
 
@@ -319,6 +326,18 @@ export function createApp({ config, store }: { config: Config; store: Store }): 
   });
 
   app.use("/api/v1", v1);
+
+  // ---- mock payment page (target of the simulated payment-link email) ----
+  app.get("/pay/:id", (req, res) => {
+    const link = store.paymentLinks.get(req.params.id);
+    const b = link ? store.bookings.get(link.bookingNumber) : undefined;
+    res.type("html").status(link && b ? 200 : 404).send(paymentPage(link && b ? { link, booking: b } : null));
+  });
+  app.post("/pay/:id", (req, res) => {
+    if (!store.paymentLinks.has(req.params.id)) return res.status(404).type("html").send(paymentPage(null));
+    store.pay(req.params.id);
+    res.redirect(303, `/pay/${req.params.id}`);
+  });
 
   // ---- admin API + booking web interface ----
   app.use("/api/admin", requireAdmin, createAdminRouter(store));

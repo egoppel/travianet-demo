@@ -1,0 +1,15 @@
+name: Redeploy via Portainer
+
+on:
+  workflow_run:
+    workflows: ["Build and push"]
+    types:
+      - completed
+
+jobs:
+  redeploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Portainer stack redeploy
+        run: curl -sS -X POST -f "${{ secrets.PORTAINER_WEBHOOK_URL }}"
